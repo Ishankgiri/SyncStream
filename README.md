@@ -57,14 +57,16 @@ syncstream/
 
 ## Project Status
 
-**Phase: 1 complete.** Monorepo scaffolding is in place: the `backend/` and `frontend/` directory structure, `backend/requirements.txt`, `frontend/package.json`, and `backend/models/schemas.py` (the `ContextChunk`, `ActionItem`, `DashboardPayload` contracts). No server, agent logic, or UI has been implemented yet — those are Phases 2–4.
+**Phase: 2 complete.** The backend runs end-to-end: `GET /api/dashboard?user_id=...&persona=...` invokes a LangGraph (Master router → persona-scoped Worker agent → NBA-scored payload assembly) and returns a real `DashboardPayload`. The chunk store is in-memory and empty until Phase 3's ingestion pipeline exists, so today the API is provably correct but has nothing to show — that's the next phase.
 
 Planned phases (see build doc for detail):
 
 - [x] **Phase 1** — Monorepo scaffolding, `requirements.txt` / `package.json`, `schemas.py`
-- [ ] **Phase 2** — FastAPI server + LangGraph orchestration (Master + Worker agents)
+- [x] **Phase 2** — FastAPI server + LangGraph orchestration (Master + Worker agents, NBA scorer)
 - [ ] **Phase 3** — Simulated data pipeline (webhook ingestion + Gemini chunking)
 - [ ] **Phase 4** — Next.js frontend widgets (Velocity Timeline, PR Diff Card, NBA Queue, Action Chips)
+
+See `AGENT_CHANGELOG.md` for the detailed, file-by-file state and `PERSONA.md` for the coding standard this codebase follows.
 
 ## Working With This Repo (for AI agents and humans)
 

@@ -1,12 +1,12 @@
-fastapi==0.115.6
-uvicorn[standard]==0.34.0
-pydantic==2.10.4
+fastapi==0.141.1
+uvicorn[standard]==0.53.0
+pydantic==2.13.5
 
 # AI orchestration
-langgraph==0.2.62
-langchain-core==0.3.28
+langgraph==1.2.12
+langchain-core==1.6.4
 
-# Vertex AI (Gemini + Vector Search)
+# Vertex AI (Gemini + Vector Search) — wired up in Phase 3
 google-cloud-aiplatform==1.75.0
 
-python-dotenv==1.0.1
+python-dotenv==1.2.3
