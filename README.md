@@ -34,7 +34,7 @@ See `SYNCSTREAM_ARCHITECTURE.md` (or the original build doc supplied to the proj
 
 ## Tech Stack
 
-- **Backend / AI Orchestration:** Python 3.11+, FastAPI, LangGraph, Vertex AI SDK (Gemini 1.5 Pro/Flash), Vertex AI Vector Search
+- **Backend / AI Orchestration:** Python 3.11+, FastAPI, LangGraph, Gemini via Vertex AI (`google-genai`), Vertex AI Vector Search (target; currently an in-memory store, see Project Status)
 - **Frontend:** React 18, Next.js 14 (App Router), TypeScript, Tailwind CSS
 - **Deployment (target):** Cloud Run (backend), Firebase Hosting (frontend)
 - **MVP integration scope:** Live — GitHub (webhooks + API), simulated Google Meet transcripts. Mocked — Jira, Slack (static JSON payloads).
@@ -49,21 +49,22 @@ syncstream/
 │   ├── main.py                  # FastAPI app
 │   ├── agents/                  # LangGraph state machine + nodes
 │   ├── engine/nba_scorer.py     # Priority scoring
-│   ├── data_pipeline/           # Webhooks, Gemini summarizer, vector store I/O
+│   ├── data_pipeline/           # Webhook route, Gemini summarizer, vector store I/O
 │   ├── models/schemas.py        # Pydantic models — single source of truth
-│   └── mocks/                   # Simulated Jira/Slack payloads
-└── AGENT_CHANGELOG.md   # AI agent session handoff log
+│   └── mocks/                   # Sample webhook payloads (GitHub, Jira, Slack, GMeet)
+├── PERSONA.md            # Coding standard — read before writing code
+└── AGENT_CHANGELOG.md    # AI agent session handoff log
 ```
 
 ## Project Status
 
-**Phase: 2 complete.** The backend runs end-to-end: `GET /api/dashboard?user_id=...&persona=...` invokes a LangGraph (Master router → persona-scoped Worker agent → NBA-scored payload assembly) and returns a real `DashboardPayload`. The chunk store is in-memory and empty until Phase 3's ingestion pipeline exists, so today the API is provably correct but has nothing to show — that's the next phase.
+**Phase: 3 complete.** The backend is fully wired end-to-end: `POST /webhooks/simulate` takes a raw event, summarizes it with Gemini, and stores it as a `ContextChunk`; `GET /api/dashboard` runs the LangGraph against those stored chunks and returns a real, NBA-scored `DashboardPayload`. Sample payloads for all four MVP sources live in `backend/mocks/`. No UI yet — that's Phase 4. The chunk store is still in-memory (not real Vertex AI Vector Search), which is fine for this stage but won't survive a server restart or run across multiple instances.
 
 Planned phases (see build doc for detail):
 
 - [x] **Phase 1** — Monorepo scaffolding, `requirements.txt` / `package.json`, `schemas.py`
 - [x] **Phase 2** — FastAPI server + LangGraph orchestration (Master + Worker agents, NBA scorer)
-- [ ] **Phase 3** — Simulated data pipeline (webhook ingestion + Gemini chunking)
+- [x] **Phase 3** — Simulated data pipeline (webhook ingestion + Gemini chunking)
 - [ ] **Phase 4** — Next.js frontend widgets (Velocity Timeline, PR Diff Card, NBA Queue, Action Chips)
 
 See `AGENT_CHANGELOG.md` for the detailed, file-by-file state and `PERSONA.md` for the coding standard this codebase follows.
@@ -76,4 +77,70 @@ This README should be kept in sync as the project's scope, architecture, and tra
 
 ## Getting Started
 
-Not yet runnable — see Project Status above. Setup instructions will be added here once Phase 1 scaffolding lands.
+Backend setup uses [uv](https://docs.astral.sh/uv/) rather than raw `pip`/`venv`. Everything below runs from the repo root.
+
+### 1. Create the environment and install dependencies
+
+```bash
+uv venv .venv --python 3.12   # backend needs Python 3.11+; adjust the version if you have a different 3.11+ installed
+source .venv/bin/activate     # Windows: .venv\Scripts\activate
+uv pip install -r backend/requirements.txt
+```
+
+`uv pip install` reads the same `requirements.txt` `pip` would — nothing about the file itself changes, only the installer. If you'd rather skip activating the venv, prefix any command below with `uv run --python .venv/bin/python` instead.
+
+To add or upgrade a dependency later: edit `backend/requirements.txt`, then re-run `uv pip install -r backend/requirements.txt` (or `uv pip install -U <package>` for a one-off bump, then reflect the new pin in the file by hand).
+
+### 2. Configure Gemini access
+
+The webhook summarizer (`backend/data_pipeline/summarizer.py`) calls Gemini through Vertex AI, which needs a GCP project with the Vertex AI API enabled and local application-default credentials:
+
+```bash
+gcloud auth application-default login
+cp backend/.env.example backend/.env
+# edit backend/.env — set GOOGLE_CLOUD_PROJECT to your project id
+```
+
+`GET /api/dashboard` never touches Gemini or any external API — only `POST /webhooks/simulate` does, matching the "no live calls at dashboard-read time" constraint.
+
+### 3. Run the server
+
+```bash
+uvicorn backend.main:app --reload
+```
+
+Serves on `http://localhost:8000`. Interactive API docs at `http://localhost:8000/docs`.
+
+### 4. Exercise the full flow
+
+With the server running, in another terminal:
+
+```bash
+# Empty dashboard — nothing ingested yet
+curl "http://localhost:8000/api/dashboard?user_id=u1&persona=developer"
+
+# Ingest the sample events (requires Gemini access, step 2 above)
+curl -X POST http://localhost:8000/webhooks/simulate \
+  -H "Content-Type: application/json" \
+  -d @backend/mocks/github_pr_merged.json
+
+curl -X POST http://localhost:8000/webhooks/simulate \
+  -H "Content-Type: application/json" \
+  -d @backend/mocks/jira_blocker.json
+
+curl -X POST http://localhost:8000/webhooks/simulate \
+  -H "Content-Type: application/json" \
+  -d @backend/mocks/slack_client_escalation.json
+
+curl -X POST http://localhost:8000/webhooks/simulate \
+  -H "Content-Type: application/json" \
+  -d @backend/mocks/gmeet_standup.json
+
+# Now the dashboards have content, scored and sorted by priority
+curl "http://localhost:8000/api/dashboard?user_id=u1&persona=developer" | python3 -m json.tool
+curl "http://localhost:8000/api/dashboard?user_id=u1&persona=product_manager" | python3 -m json.tool
+```
+
+You should see the developer dashboard pick up only the GitHub/Jira chunks and the PM dashboard only the Slack/GMeet chunks (persona isolation), with the P0/blocked items scored highest.
+
+The chunk store is in-memory and per-process — restarting the server clears it, so you'll need to re-run the `curl -X POST .../webhooks/simulate` calls after each restart.

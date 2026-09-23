@@ -1,0 +1,6 @@
+{
+  "source": "slack",
+  "raw_text": "In #client-x-channel: Client X is asking about the beta launch date after noticing PR #402 is still open. The account team is requesting a status update today — this is turning into a client escalation.",
+  "pointer_uri": "https://myteam.slack.com/archives/C123/p1690000000",
+  "metadata": {"channel": "client-x-channel"}
+}

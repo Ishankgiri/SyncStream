@@ -1,0 +1,6 @@
+{
+  "source": "github",
+  "raw_text": "PR #402 'Fix P0 auth schema migration' was merged into main by dev1. This resolves the blocked DB migration that DevOps had flagged as a P0 the day before.",
+  "pointer_uri": "https://github.com/org/repo/pull/402",
+  "metadata": {"pr_status": "merged", "author": "dev1"}
+}

@@ -1,0 +1,6 @@
+{
+  "source": "jira",
+  "raw_text": "Ticket ENG-118 'DB migration blocked' is marked P0. DevOps reports the migration is blocked due to latency issues and needs an engineer to unblock it before Thursday's release.",
+  "pointer_uri": "https://jira.example.com/browse/ENG-118",
+  "metadata": {"ticket_status": "blocked", "assignee": "unassigned"}
+}

@@ -6,7 +6,7 @@ pydantic==2.13.5
 langgraph==1.2.12
 langchain-core==1.6.4
 
-# Vertex AI (Gemini + Vector Search) — wired up in Phase 3
-google-cloud-aiplatform==1.75.0
+# Gemini via Vertex AI (event summarization)
+google-genai==2.25.0
 
 python-dotenv==1.2.3
